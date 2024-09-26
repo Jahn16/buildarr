@@ -19,6 +19,7 @@ Buildarr configuration base class.
 
 from __future__ import annotations
 
+import os
 import json
 
 from logging import getLogger
@@ -43,7 +44,7 @@ from uuid import UUID
 
 import yaml
 
-from pydantic import AnyUrl, BaseModel, NameEmail, SecretStr
+from pydantic import AnyUrl, BaseModel, NameEmail, SecretStr, validator
 from pydantic.validators import _VALIDATORS
 from typing_extensions import Self
 
@@ -63,6 +64,19 @@ class ConfigBase(BaseModel, Generic[Secrets]):
     Contains a number of helper methods and configuration options
     to make fetching from remote instances and updating them as boilerplate-free as possible.
     """
+
+    @validator("*", pre=True)
+    def get_env_var(cls, v: Any) -> Any:
+        if isinstance(v, str) and v.startswith("!env_var"):
+            env_var_settings = v.split()
+            assert len(env_var_settings) > 1, "Missing environment variable name"
+            variable_name = env_var_settings[1]
+            value = os.environ.get(variable_name)
+            assert value is not None, f"No value was set for {variable_name}"
+            return value
+        return v
+
+
 
     @classmethod
     def from_remote(cls, secrets: Secrets) -> Self:
